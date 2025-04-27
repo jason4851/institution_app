@@ -1,0 +1,67 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class UsedTicketsPage extends StatelessWidget {
+  const UsedTicketsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Used Tickets'),
+        centerTitle: true,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('tickets')
+            .where('user_id', isEqualTo: userId)
+            .where('status', isEqualTo: 'used') // Only fetch used tickets
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Something went wrong!'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Text(
+                'No used tickets found.',
+                style: TextStyle(fontSize: 18),
+              ),
+            );
+          }
+
+          final tickets = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: tickets.length,
+            itemBuilder: (context, index) {
+              final ticket = tickets[index];
+              final data = ticket.data() as Map<String, dynamic>;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: ListTile(
+                  leading: Icon(Icons.confirmation_num, color: Colors.grey),
+                  title: Text(data['name'] ?? 'Unknown Ticket'),
+                  subtitle: Text('Ticket ID: ${data['ticket_id'] ?? 'N/A'}'),
+                  trailing: Text(
+                    'Used',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

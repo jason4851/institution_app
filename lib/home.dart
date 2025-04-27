@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:institution_app/camera.dart';
+import 'package:institution_app/used_tickets';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -52,10 +54,38 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Institution Home'),
-        centerTitle: true,
-      ),
+appBar: AppBar(
+  title: Text('Institution Home'),
+  centerTitle: true,
+  actions: [
+    PopupMenuButton<int>(
+      onSelected: (value) {
+        if (value == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => UsedTicketsPage()),
+          );
+        } else if (value == 2) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => Camera()),// will get replaced with blink detection
+          );
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 1,
+          child: Text('Go to Page One'),
+        ),
+        PopupMenuItem(
+          value: 2,
+          child: Text('Go to Page Two'),
+        ),
+      ],
+    )
+  ],
+),
+
       body: Center(
         child: isLoading
             ? CircularProgressIndicator()
