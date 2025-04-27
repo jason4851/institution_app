@@ -1,99 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:institution_app/camera.dart';
-import 'package:institution_app/used_tickets';
-
+import 'camera.dart';
+import 'used_tickets.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String institutionId;
+  final String institutionName;
+
+  const HomePage({
+    Key? key,
+    required this.institutionId,
+    required this.institutionName,
+  }) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  String institutionName = '';
+  late String institutionName;
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchInstitutionDetails();
-  }
-
-  Future<void> fetchInstitutionDetails() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      setState(() {
-        institutionName = 'No user logged in';
-        isLoading = false;
-      });
-      return;
-    }
-
-    final userId = user.uid;
-
-    try {
-      final institutionSnapshot = await FirebaseFirestore.instance
-          .collection('institutions')
-          .doc(userId)
-          .get();
-
-      if (institutionSnapshot.exists) {
-        setState(() {
-          institutionName = institutionSnapshot['name'];
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          institutionName = 'Institution not found';
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error fetching institution: $e');
-      setState(() {
-        institutionName = 'Error loading institution';
-        isLoading = false;
-      });
-    }
+    // simply use the name you passed in
+    institutionName = widget.institutionName;
+    isLoading = false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Welcome'),
-        centerTitle: false,
-        actions: [
-          PopupMenuButton<int>(
-            onSelected: (value) {
-              if (value == 1) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => UsedTicketsPage()),
-                );
-              } else if (value == 2) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => Camera()),
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 1,
-                child: Text('Used Tickets'),
-              ),
-              PopupMenuItem(
-                value: 2,
-                child: Text('Camera'),
-              ),
-            ],
-          ),
-        ],
+        // show hello in the app bar
+        title: Text('Hello, $institutionName!'),
       ),
       body: Center(
         child: isLoading
@@ -101,14 +41,48 @@ class _HomePageState extends State<HomePage> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // big greeting up front
                   Text(
-                    'Welcome',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    'Hello, $institutionName!',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+
+                  SizedBox(height: 40),
+
+                  // you can still show other UI below
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UsedTicketsPage(),
+                        ),
+                      );
+                    },
+                    child: Text('View Used Tickets'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: Size(200, 50),
+                    ),
+                  ),
+
                   SizedBox(height: 20),
-                  Text(
-                    institutionName,
-                    style: TextStyle(fontSize: 24),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => Camera(),
+                        ),
+                      );
+                    },
+                    child: Text('Open Camera'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: Size(200, 50),
+                    ),
                   ),
                 ],
               ),

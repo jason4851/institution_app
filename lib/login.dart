@@ -1,93 +1,105 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'home.dart'; // <-- Import HomePage
+import 'package:http/http.dart' as http;
+import 'home.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-
+  const LoginPage({Key? key}) : super(key: key);
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController emailController    = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-
-  bool isLoading = false;
+  bool isLoading     = false;
   String errorMessage = '';
 
-  // Dummy login credentials (for local testing, no backend)
-  final String correctEmail = 'test@example.com';
-  final String correctPassword = 'password123';
-
-  void login() {
+  Future<void> login() async {
     setState(() {
-      isLoading = true;
-      errorMessage = '';
+      isLoading     = true;
+      errorMessage  = '';
     });
 
-    Future.delayed(Duration(seconds: 1), () {
-      if (emailController.text.trim() == correctEmail &&
-          passwordController.text.trim() == correctPassword) {
-        // Success
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login successful')),
-        );
+    final url = Uri.parse('http://192.168.1.66:5000/institution_login');
+    final payload = {
+      'email':    emailController.text.trim(),
+      'password': passwordController.text.trim(),
+    };
 
+    try {
+      final resp = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      final body = jsonDecode(resp.body);
+      if (resp.statusCode == 200) {
+        // navigate into HomePage, passing back the institution info
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          MaterialPageRoute(
+            builder: (_) => HomePage(
+              institutionId:   body['institution_id']   as String,
+              institutionName: body['institution_name'] as String,
+            ),
+          ),
         );
-
       } else {
+        // server-side error (400, 401, etc)
         setState(() {
-          errorMessage = 'Invalid email or password';
+          errorMessage = body['error'] ?? 'Login failed';
         });
       }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Network error — please try again.';
+      });
+    } finally {
       setState(() {
         isLoading = false;
       });
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Login')),
+      appBar: AppBar(title: const Text('Institution Login')),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Center(
           child: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: emailController,
-                  decoration: InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 TextField(
                   controller: passwordController,
+                  decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
-                  decoration: InputDecoration(labelText: 'Password'),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 if (errorMessage.isNotEmpty)
-                  Text(
-                    errorMessage,
-                    style: TextStyle(color: Colors.red),
-                  ),
-                SizedBox(height: 20),
+                  Text(errorMessage, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 20),
                 isLoading
-                    ? CircularProgressIndicator()
-                    : ElevatedButton(
-                        onPressed: login,
-                        child: Text('Login'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: login,
+                      child: const Text('Login'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                    ),
               ],
             ),
           ),
