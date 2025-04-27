@@ -75,7 +75,7 @@ class _HomePageState extends State<HomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => Camera(),
+                          builder: (_) => Camera(institution_id: widget.institutionId,),
                         ),
                       );
                     },

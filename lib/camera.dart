@@ -1,9 +1,12 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class Camera  extends StatefulWidget{
-  const Camera({super.key});
+  final String institution_id;
+  const Camera({super.key, required this.institution_id});
 
 
   @override
@@ -15,6 +18,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   List<CameraDescription> cameras = [];
   CameraController? cameraController;
   int selectedCameraIndex = 0;
+  bool _isCapturingBurst = false;
 
 
   @override
@@ -34,6 +38,41 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   void initState(){
     super.initState();
     _setupCameraController();
+  }
+
+
+  Future<void> _captureFace()async{
+    if (cameraController == null || cameraController?.value.isInitialized == false) {
+      return;
+    }
+    try{
+      XFile picture = await cameraController!.takePicture();
+      File pictureFile = File(picture.path);
+      await _detectFace(File(pictureFile.path));
+      print("Detected Face: ${picture.path}");
+    }
+    catch(e){
+      print("Error in face detection: $e");
+    }
+  }
+  
+  Future<void> _detectFace(File imageFile) async{
+    try{
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://192.168.0.187:5001/match_face')
+      );
+
+      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+      request.fields['institution_id'] = widget.institution_id;
+      var response = await request.send();  
+      if (response.statusCode == 200) {
+        print("Face detection successful");
+      }
+    }
+    catch(e){
+      print("Error in face detection: $e");
+    }
   }
 
   @override
@@ -78,11 +117,7 @@ Widget _buildUI(){
             child: Container(),
           ),
             IconButton(
-            onPressed: () async{
-              XFile picture = await cameraController!.takePicture();
-              Gal.putImage(picture.path);
-              
-            },
+            onPressed: () => _captureFace(),
             iconSize: 90,
             icon: const Icon(
             Icons.camera,
