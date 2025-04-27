@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "778982725198",
+    "project_id": "faceapp-d1b7b",
+    "storage_bucket": "faceapp-d1b7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:778982725198:android:55f6cb920d4050bc69951f",
+        "android_client_info": {
+          "package_name": "com.example.facial_recognition"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-66sneh4lkHtMH_CmE1YkrZY5ql8yQoA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:778982725198:android:888d82a26d245fb669951f",
+        "android_client_info": {
+          "package_name": "com.example.institution_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-66sneh4lkHtMH_CmE1YkrZY5ql8yQoA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
