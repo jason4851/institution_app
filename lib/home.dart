@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:institution_app/camera.dart';
 import 'package:institution_app/used_tickets';
 
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -22,10 +23,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchInstitutionDetails() async {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        institutionName = 'No user logged in';
+        isLoading = false;
+      });
+      return;
+    }
+
+    final userId = user.uid;
 
     try {
-      // Directly look inside "institutions" collection for current logged-in institution
       final institutionSnapshot = await FirebaseFirestore.instance
           .collection('institutions')
           .doc(userId)
@@ -54,38 +64,37 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-appBar: AppBar(
-  title: Text('Institution Home'),
-  centerTitle: true,
-  actions: [
-    PopupMenuButton<int>(
-      onSelected: (value) {
-        if (value == 1) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => UsedTicketsPage()),
-          );
-        } else if (value == 2) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => Camera()),// will get replaced with blink detection
-          );
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 1,
-          child: Text('Go to Page One'),
-        ),
-        PopupMenuItem(
-          value: 2,
-          child: Text('Go to Page Two'),
-        ),
-      ],
-    )
-  ],
-),
-
+      appBar: AppBar(
+        title: Text('Welcome'),
+        centerTitle: false,
+        actions: [
+          PopupMenuButton<int>(
+            onSelected: (value) {
+              if (value == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => UsedTicketsPage()),
+                );
+              } else if (value == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Camera()),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 1,
+                child: Text('Used Tickets'),
+              ),
+              PopupMenuItem(
+                value: 2,
+                child: Text('Camera'),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: Center(
         child: isLoading
             ? CircularProgressIndicator()
@@ -107,3 +116,4 @@ appBar: AppBar(
     );
   }
 }
+
