@@ -58,7 +58,7 @@ class _HomePageState extends State<HomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => UsedTicketsPage(),
+                      builder: (_) => UsedTicketsPage(institutionId: widget.institutionId,), 
                         ),
                       );
                     },

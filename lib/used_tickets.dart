@@ -1,19 +1,23 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:intl/intl.dart';  // add intl: ^0.17.0 to pubspec.yaml
 
 class UsedTicketsPage extends StatefulWidget {
-  const UsedTicketsPage({super.key});
+  final String institutionId;
+  const UsedTicketsPage({Key? key, required this.institutionId})
+      : super(key: key);
 
   @override
-  _UsedTicketsPageState createState() => _UsedTicketsPageState();
+  State<UsedTicketsPage> createState() => _UsedTicketsPageState();
 }
 
 class _UsedTicketsPageState extends State<UsedTicketsPage> {
   List<Map<String, dynamic>> usedTickets = [];
   bool isLoading = true;
 
-  final String backendUrl = "http://127.0.0.1:5001"; // your backend IP
+  // point this at your real backend/server IP & port
+  final String backendUrl = "http://192.168.1.66:5000";
 
   @override
   void initState() {
@@ -22,28 +26,45 @@ class _UsedTicketsPageState extends State<UsedTicketsPage> {
   }
 
   Future<void> fetchUsedTickets() async {
-    setState(() {
-      isLoading = true;
+    setState(() => isLoading = true);
+
+    final uri = Uri.parse('$backendUrl/get_used_tickets');
+    final payload = jsonEncode({
+      'institution_id': widget.institutionId,
     });
 
     try {
-      final response = await http.get(Uri.parse('$backendUrl/get_used_tickets'));
+      final resp = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: payload,
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> ticketsRaw = data['used_tickets'];
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final List<dynamic> ticketsRaw = data['tickets'] ?? [];
 
         setState(() {
-          usedTickets = ticketsRaw.cast<Map<String, dynamic>>();
-          isLoading = false;
+          usedTickets =
+              ticketsRaw.cast<Map<String, dynamic>>().toList(growable: false);
         });
       } else {
-        print('Failed to load used tickets. Code: ${response.statusCode}');
-        setState(() => isLoading = false);
+        debugPrint('Failed to load used tickets: ${resp.statusCode}');
       }
     } catch (e) {
-      print('Error fetching tickets: $e');
+      debugPrint('Error fetching tickets: $e');
+    } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  String _formatDate(String? isoString) {
+    if (isoString == null) return '';
+    try {
+      final dt = DateTime.parse(isoString);
+      return DateFormat.yMMMd().add_jm().format(dt);
+    } catch (_) {
+      return isoString;
     }
   }
 
@@ -51,45 +72,106 @@ class _UsedTicketsPageState extends State<UsedTicketsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Used Tickets'),
+        title: const Text('Used Tickets'),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: fetchUsedTickets, // Call API again on tap
+            icon: const Icon(Icons.refresh),
+            onPressed: fetchUsedTickets,
           ),
         ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : usedTickets.isEmpty
-              ? Center(
+              ? const Center(
                   child: Text(
                     'No used tickets found.',
                     style: TextStyle(fontSize: 18),
                   ),
                 )
-              : ListView.builder(
-                  itemCount: usedTickets.length,
-                  itemBuilder: (context, index) {
-                    final ticket = usedTickets[index];
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      child: ListTile(
-                        leading: Icon(Icons.confirmation_num, color: Colors.grey),
-                        title: Text(ticket['name'] ?? 'Unknown Ticket'),
-                        subtitle: Text('Ticket ID: ${ticket['ticket_id'] ?? 'N/A'}'),
-                        trailing: Text(
-                          'Used',
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              : Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListView.builder(
+                    itemCount: usedTickets.length,
+                    itemBuilder: (context, i) {
+                      final t = usedTickets[i];
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                    );
-                  },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Ticket name
+                              Text(
+                                t['name'] ?? 'Unnamed Ticket',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Description
+                              if ((t['description'] as String?)?.isNotEmpty ==
+                                  true)
+                                Text(
+                                  t['description']!,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+
+                              const SizedBox(height: 12),
+
+                              // Usage info row
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.event_available,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _formatDate(t['last_accessed'] ??
+                                            t['created_at']),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'USED',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
     );
   }
 }
-
-
