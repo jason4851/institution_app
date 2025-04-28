@@ -69,6 +69,10 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       if (response.statusCode == 200) {
         print("Face detection successful");
       }
+      else {
+        final respStr = await response.stream.bytesToString();
+        print('Error Body: $respStr');
+      }
     }
     catch(e){
       print("Error in face detection: $e");
