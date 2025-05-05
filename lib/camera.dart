@@ -196,6 +196,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   }
 
   Future<void> _takePicture() async {
+    print("Blink found, taking picture");
     if (cameraController == null || !cameraController!.value.isInitialized) return;
     setState(() => _isProcessing = true);
     try {
@@ -219,7 +220,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://127.0.0.1:5001/upload'),
+        Uri.parse('http://192.168.0.187:5001/upload'),
       );
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
       request.fields['uid'] = uid;

@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
       errorMessage  = '';
     });
 
-    final url = Uri.parse('http://127.0.0.1:5001/institution_login');
+    final url = Uri.parse('http://192.168.0.187:5001/institution_login');
     final payload = {
       'email':    emailController.text.trim(),
       'password': passwordController.text.trim(),
