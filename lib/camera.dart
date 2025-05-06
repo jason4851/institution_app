@@ -26,8 +26,10 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   bool _isProcessing = false;
   bool _isBusy = false;
   bool _didCloseEyes = false;
+  int _blinking = 0;
+  late FaceDetector faceDetector;
   final List<M7LivelynessStepItem> _verificationSteps = [];
-
+  DateTime _lastFrameProcessed = DateTime.now();  
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -43,11 +45,24 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   }
 
   @override
+  void dispose() {
+    cameraController?.dispose();
+    faceDetector.close();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  @override
   void initState(){
     super.initState();
     _initValues();
     _setupCameraController();
     WidgetsBinding.instance.addObserver(this);
+    faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
+        enableLandmarks: true,
+        enableClassification: true,
+      )
+    );
   }
 
   void _initValues(){
@@ -99,35 +114,35 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   }
 
   Future<void> _processCameraImage(CameraImage image) async{
+    final now = DateTime.now();
     if(_isBusy || _isProcessing || _verificationSteps[0].isCompleted){
       return;
     }
+    if(now.difference(_lastFrameProcessed).inMilliseconds < 100){
+      return;
+    }
     _isBusy = true;
+    _lastFrameProcessed = now;
     final inputImage = _inputImageFromCameraImage(image);
     if(inputImage == null){
       _isBusy = false;
       return; 
     }
-    final faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableLandmarks: true,
-        enableClassification: true,
-      )
-    );
     final faces = await faceDetector.processImage(inputImage);
-    faceDetector.close();
     if(faces.isNotEmpty){
       await DetectionUtils.detect(
         face: faces.first,
         step: M7LivelynessStep.blink,
         onCompleteStep: (step) async {
+          _blinking++;
+          print("Blink detected: $_blinking");
           _verificationSteps[0] = _verificationSteps[0].copyWith(isCompleted: true);
-          await _takePicture();
+          //await _takePicture();
         },
         onStartProcessing: () {
-          setState(() {
-            _isProcessing = true;
-          });
+          // setState(() {
+          //   _isProcessing = true;
+          // });
         },
         onSetDidCloseEyes: () {
           if(!_didCloseEyes){
@@ -137,7 +152,8 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       );
       if(_didCloseEyes && (faces.first.leftEyeOpenProbability ?? 1.0) > 0.75 && (faces.first.rightEyeOpenProbability ?? 1.0) > 0.75){
         _verificationSteps[0] = _verificationSteps[0].copyWith(isCompleted: true);
-        await _takePicture();
+        _blinking++;
+        //await _takePicture();
       }
     }
 
@@ -282,7 +298,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
         leading: BackButton(
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Check In'),
+        title: Text('Check In: Blinks $_blinking'),
       ),
   );
 
