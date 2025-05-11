@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:eyeblinkdetectface/index.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:institution_app/utils/detection_utils.dart';
 import 'package:flutter/services.dart';
 
@@ -91,7 +92,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       if(cameras.isNotEmpty){
         cameraController = CameraController(
           cameras[selectedCameraIndex],
-          ResolutionPreset.max,
+          ResolutionPreset.medium,
           enableAudio: false,
           imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
         );
@@ -113,55 +114,54 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     }
   }
 
-  Future<void> _processCameraImage(CameraImage image) async{
-    final now = DateTime.now();
-    if(_isBusy || _isProcessing || _verificationSteps[0].isCompleted){
-      return;
-    }
-    if(now.difference(_lastFrameProcessed).inMilliseconds < 100){
-      return;
-    }
-    _isBusy = true;
-    _lastFrameProcessed = now;
-    final inputImage = _inputImageFromCameraImage(image);
-    if(inputImage == null){
-      _isBusy = false;
-      return; 
-    }
-    final faces = await faceDetector.processImage(inputImage);
-    if(faces.isNotEmpty){
-      await DetectionUtils.detect(
-        face: faces.first,
-        step: M7LivelynessStep.blink,
-        onCompleteStep: (step) async {
-          _blinking++;
-          print("Blink detected: $_blinking");
-          _verificationSteps[0] = _verificationSteps[0].copyWith(isCompleted: true);
-          //await _takePicture();
-        },
-        onStartProcessing: () {
-          // setState(() {
-          //   _isProcessing = true;
-          // });
-        },
-        onSetDidCloseEyes: () {
-          if(!_didCloseEyes){
-            setState(()=> _didCloseEyes = true);
-          }
-        },
-      );
-      if(_didCloseEyes && (faces.first.leftEyeOpenProbability ?? 1.0) > 0.75 && (faces.first.rightEyeOpenProbability ?? 1.0) > 0.75){
-        _verificationSteps[0] = _verificationSteps[0].copyWith(isCompleted: true);
-        _blinking++;
-        //await _takePicture();
-      }
-    }
+  Future<void> _processCameraImage(CameraImage image) async {
+    if (_isBusy || _verificationSteps[0].isCompleted) return;
 
-    _isBusy = false;
-    if(mounted){
-      setState(() {});
-    } 
-  }
+    final now = DateTime.now();
+    if (now.difference(_lastFrameProcessed).inMilliseconds < 100) return;
+
+    _isBusy = true;
+    try {
+      _lastFrameProcessed = now;
+      final inputImage = _inputImageFromCameraImage(image);
+      if (inputImage == null) return;
+
+      final faces = await faceDetector.processImage(inputImage);
+      if (faces.isNotEmpty) {
+        final face = faces.first;
+        DetectionUtils.detect(
+          face: faces.first,
+          step: M7LivelynessStep.blink,
+          onCompleteStep: (step) async {
+            _verificationSteps[0] = _verificationSteps[0].copyWith(isCompleted: true);
+            //await _takePicture();
+          },
+          onStartProcessing: () {
+            // setState(() {
+            //   _isProcessing = true;
+            // });
+          },
+          onSetDidCloseEyes: () {
+            if(!_didCloseEyes){
+              Future.microtask(() => setState(() => _didCloseEyes = true));
+            }
+          },
+        );
+        final left = face.leftEyeOpenProbability ?? 1.0;
+        final right = face.rightEyeOpenProbability ?? 1.0;
+        if (_didCloseEyes && left > 0.75 && right > 0.75) {
+          setState(() {
+            _blinking++;
+            _didCloseEyes = false;
+            _takePicture();
+          });
+        }
+      }
+    } finally {
+      _isBusy = false;
+    }
+}
+
   InputImage? _inputImageFromCameraImage(CameraImage image) {
     if (cameraController == null) return null;
     final camera = cameras[selectedCameraIndex];
@@ -190,23 +190,34 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
         (Platform.isIOS && format != InputImageFormat.bgra8888)) {
       return null;
     }
-
-    if (image.planes.length != 1) return null;
-    final plane = image.planes.first;
-    return InputImage.fromBytes(
-      bytes: plane.bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: plane.bytesPerRow,
-      ),
-    );
+    try{
+      final WriteBuffer allBytes = WriteBuffer();
+      for (Plane plane in image.planes){
+        allBytes.putUint8List(plane.bytes);
+      }
+      final bytes = allBytes.done().buffer.asUint8List();
+      return InputImage.fromBytes(
+        bytes: bytes,
+        metadata: InputImageMetadata(
+          size: Size(image.width.toDouble(), image.height.toDouble()),
+          rotation: rotation,
+          format: format,
+          bytesPerRow: image.planes[0].bytesPerRow,
+        ),
+      );
+    }
+    catch (e) {
+      print("Failed to convert image: $e");
+      return null;
+    }
   }
   
   void _switchCamera() async {
     if(cameras.length > 1){
       selectedCameraIndex = (selectedCameraIndex + 1) % cameras.length;
+      if(cameraController != null){
+        await cameraController!.dispose();
+      }
       _setupCameraController();
     }
   }
@@ -236,7 +247,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.0.187:5001/upload'),
+        Uri.parse('http://192.168.0.163:5001/upload'),
       );
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
       request.fields['uid'] = uid;
@@ -271,7 +282,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     try{
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.0.187:5001/match_face')
+        Uri.parse('http://192.168.0:163:5001/match_face')
       );
 
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
