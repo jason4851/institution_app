@@ -79,8 +79,8 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       contourColor: Colors.blue,
       thresholds: [
         M7BlinkDetectionThreshold(
-          leftEyeProbability: 0.25,
-          rightEyeProbability: 0.25,
+          leftEyeProbability: 0.15,
+          rightEyeProbability: 0.15,
         ),
       ]
     );
@@ -149,6 +149,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
         );
         final left = face.leftEyeOpenProbability ?? 1.0;
         final right = face.rightEyeOpenProbability ?? 1.0;
+        //upon finding out they closed eyes and eyes are open, opens blinking and takes pictures
         if (_didCloseEyes && left > 0.75 && right > 0.75) {
           setState(() {
             _blinking++;
@@ -247,7 +248,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.0.163:5001/upload'),
+        Uri.parse('http://10.232.232.108:5001/upload'),
       );
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
       request.fields['uid'] = uid;
@@ -282,7 +283,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
     try{
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.0:163:5001/match_face')
+        Uri.parse('http://10.232.232.108:5001/match_face')
       );
 
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
@@ -290,10 +291,13 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       var response = await request.send();  
       if (response.statusCode == 200) {
         print("Face detection successful");
+        Navigator.pop(context);
       }
       else {
         final respStr = await response.stream.bytesToString();
         print('Error Body: $respStr');
+        setState((){});
+        cameraController?.startImageStream(_processCameraImage);
       }
     }
     catch(e){

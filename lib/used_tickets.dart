@@ -17,7 +17,7 @@ class _UsedTicketsPageState extends State<UsedTicketsPage> {
   bool isLoading = true;
 
   // point this at your real backend/server IP & port
-  final String backendUrl = "http://192.168.0.163:5001";
+  final String backendUrl = "http://10.232.232.108:5001";
 
   @override
   void initState() {

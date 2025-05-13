@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   late String institutionName;
   bool isLoading = true;
   List<Map<String, dynamic>> activeTickets = [];
-  final String backendUrl = "http://192.168.0.163:5001";
+  final String backendUrl = "http://10.232.232.108:5001";
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchActiveTickets() async {
-    final uri = Uri.parse('$backendUrl/get_active_tickets');
+    final uri = Uri.parse('$backendUrl/get_home_tickets');
     final payload = jsonEncode({'institution_id': widget.institutionId});
 
     try {
