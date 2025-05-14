@@ -27,7 +27,8 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
   bool _isProcessing = false;
   bool _isBusy = false;
   bool _didCloseEyes = false;
-  int _blinking = 0;
+  bool _face_detected = false;
+  String _detect_text = '';
   late FaceDetector faceDetector;
   final List<M7LivelynessStepItem> _verificationSteps = [];
   DateTime _lastFrameProcessed = DateTime.now();  
@@ -152,7 +153,6 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
         //upon finding out they closed eyes and eyes are open, opens blinking and takes pictures
         if (_didCloseEyes && left > 0.75 && right > 0.75) {
           setState(() {
-            _blinking++;
             _didCloseEyes = false;
             _takePicture();
           });
@@ -290,8 +290,15 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
       request.fields['institution_id'] = widget.institution_id;
       var response = await request.send();  
       if (response.statusCode == 200) {
+        final responseBody = await response.stream.bytesToString(); 
+        final data = jsonDecode(responseBody);
+        final Map<String, dynamic> user = data["user"];
+        final String firstName = user["first_name"];
         print("Face detection successful");
-        Navigator.pop(context);
+        setState(() {
+          _face_detected = true;
+          _detect_text = "$firstName, Welcome";
+        });
       }
       else {
         final respStr = await response.stream.bytesToString();
@@ -313,7 +320,7 @@ class _CameraState extends State<Camera> with WidgetsBindingObserver{
         leading: BackButton(
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Check In: Blinks $_blinking'),
+        title: Text('Blink to Detect Face'),
       ),
   );
 
@@ -340,10 +347,10 @@ Widget _buildUI(){
               const CircularProgressIndicator()
             else
               Text(
-                _didCloseEyes ? 'Open your eyes to complete blink' : 'Blink to capture your photo',
+                _face_detected? _detect_text : '',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Colors.green,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
